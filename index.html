@@ -571,6 +571,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
       </div>
     </div>
     <div class="compass-label" id="compass-label">나침반이 스팟 방향을 가리킵니다</div>
+    <div id="gps-debug" style="font-size:11px;color:#FF3B30;text-align:center;padding:4px 8px;word-break:break-all;"></div>
     <div class="dist-progress-wrap">
       <div class="dist-progress-bar" id="dist-progress-bar" style="width:0%;"></div>
     </div>
@@ -1068,29 +1069,43 @@ function initHuntMap(){
 // GEOLOCATION
 // ════════════════════════════════════════════
 function startGeolocation(){
+  var debugEl = document.getElementById('gps-debug');
+
   if(!navigator.geolocation){
+    if(debugEl) debugEl.textContent = '❌ navigator.geolocation 없음';
     showToast('위치 서비스를 지원하지 않는 브라우저예요.');
     startDemoMode(); return;
   }
-  // 먼저 1회 즉시 조회 (빠른 초기화)
-  navigator.geolocation.getCurrentPosition(onPosition, function(e){
-    console.warn('getCurrentPosition 실패:', e.code, e.message);
-  }, {enableHighAccuracy:true, timeout:8000, maximumAge:0});
 
-  // 이후 지속 감시
+  if(debugEl) debugEl.textContent = '🔄 GPS 권한 요청 중...';
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      if(debugEl) debugEl.textContent = '✅ GPS 성공! 위도:'+pos.coords.latitude.toFixed(4)+' 경도:'+pos.coords.longitude.toFixed(4);
+      onPosition(pos);
+    },
+    function(e){
+      var msg = ['', '권한 거부됨(1)', '위치 불가(2)', '타임아웃(3)'];
+      if(debugEl) debugEl.textContent = '❌ GPS 오류: '+( msg[e.code]||e.code)+' - '+e.message;
+      showToast('GPS 오류: '+(msg[e.code]||e.code));
+    },
+    {enableHighAccuracy:true, timeout:15000, maximumAge:0}
+  );
+
   S.watchId = navigator.geolocation.watchPosition(
     onPosition,
     function(e){
+      var msg = ['', '권한 거부됨', '위치 불가', '타임아웃'];
+      if(debugEl) debugEl.textContent = '❌ watch 오류: '+(msg[e.code]||e.code);
       if(e.code === 1){
         showToast('📍 위치 권한을 허용해주세요!');
-        // iOS Safari: 버튼으로 재시도 안내
         var btn = document.getElementById('enable-sensor-btn');
         if(btn) btn.style.display='block';
       } else {
         onGeoError();
       }
     },
-    {enableHighAccuracy:true, maximumAge:2000, timeout:12000}
+    {enableHighAccuracy:true, maximumAge:2000, timeout:15000}
   );
 }
 function onPosition(pos){
