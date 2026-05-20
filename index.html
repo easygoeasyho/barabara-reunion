@@ -507,10 +507,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 <div class="screen hidden" id="screen-arrival">
   <div style="width:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;">
     <div class="arrival-card">
-      <!-- 상단: 스팟 탭 네비게이션 -->
-      <div id="arrival-nav" style="display:none;width:100%;">
-        <!-- 스팟 탭 스크롤 영역 -->
-        <div id="arrival-spot-tabs" style="display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;"></div>
+      <!-- 상단: 뒤로가기 버튼 -->
+      <div id="arrival-nav" style="display:none;width:100%;padding:2px 0 8px;">
+        <button onclick="backToSpotSelect()" style="background:none;border:none;padding:4px 0;cursor:pointer;font-size:15px;color:#9A9AAA;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:4px;">
+          ← 스팟 목록으로
+        </button>
       </div>
       <div class="arrival-burst" id="arrival-emoji">🎉</div>
       <div class="arrival-title">스팟 도착!</div>
@@ -1316,30 +1317,6 @@ function backToSpotSelect(){
 
 
 // ── 이전/다음 스팟 이동 ──
-function goToPrevSpot(){
-  if(!S._currentSpot||!S.spots.length) return;
-  const idx = S.spots.findIndex(s=>s.id===S._currentSpot.id);
-  // 이전 방문 스팟 찾기 (방문한 것만)
-  for(let i=idx-1; i>=0; i--){
-    const claimKey = 'arClaimed_'+S.userFp+'_'+S.spots[i].id;
-    if(localStorage.getItem(claimKey)||S.arrivedSpots.has(S.spots[i].id)){
-      reviewCompletedSpot(S.spots[i].id); return;
-    }
-  }
-  showToast('이전에 방문한 스팟이 없어요.');
-}
-function goToNextSpot(){
-  if(!S._currentSpot||!S.spots.length) return;
-  const idx = S.spots.findIndex(s=>s.id===S._currentSpot.id);
-  // 다음 방문 스팟 찾기 (방문한 것만)
-  for(let i=idx+1; i<S.spots.length; i++){
-    const claimKey = 'arClaimed_'+S.userFp+'_'+S.spots[i].id;
-    if(localStorage.getItem(claimKey)||S.arrivedSpots.has(S.spots[i].id)){
-      reviewCompletedSpot(S.spots[i].id); return;
-    }
-  }
-  showToast('다음에 방문한 스팟이 없어요.');
-}
 
 
 // ── 홈으로 돌아가기 ──
@@ -1532,47 +1509,6 @@ async function refreshCommentView(){
 // ── 댓글 카드 HTML 빌더 (DOM createElement — 따옴표 충돌 없음) ──
 
 
-// ── 도착 화면 상단 스팟 탭 렌더 ──
-function renderArrivalSpotTabs(currentSpotId){
-  var wrap = document.getElementById('arrival-spot-tabs');
-  if(!wrap) return;
-  wrap.innerHTML = '';
-
-  // ← 스팟 목록으로
-  var backBtn = document.createElement('button');
-  backBtn.style.cssText = 'flex-shrink:0;background:none;border:none;padding:6px 8px;cursor:pointer;font-size:20px;color:#9A9AAA;line-height:1;';
-  backBtn.textContent = '←';
-  backBtn.addEventListener('click', backToSpotSelect);
-  wrap.appendChild(backBtn);
-
-  // 스팟 탭들
-  S.spots.forEach(function(sp){
-    var visited = S.arrivedSpots.has(sp.id) || !!localStorage.getItem('arClaimed_'+S.userFp+'_'+sp.id);
-    var isCurrent = sp.id === currentSpotId;
-    var btn = document.createElement('button');
-    var baseStyle = 'flex-shrink:0;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:"Noto Sans KR",sans-serif;white-space:nowrap;transition:all .2s;border:1.5px solid;';
-    if(isCurrent){
-      btn.style.cssText = baseStyle + 'background:#3A6FD8;color:#fff;border-color:#3A6FD8;';
-    } else if(visited){
-      btn.style.cssText = baseStyle + 'background:#EEF3FF;color:#3A6FD8;border-color:#3A6FD8;';
-    } else {
-      btn.style.cssText = baseStyle + 'background:#F5F5F5;color:#AAAAAA;border-color:#DDDDDD;cursor:not-allowed;opacity:0.6;';
-    }
-    btn.textContent = (visited ? '✅' : '🔒') + ' ' + sp.name;
-    if(visited){
-      btn.addEventListener('click', (function(sid){ return function(){ reviewCompletedSpot(sid); }; })(sp.id));
-    } else {
-      btn.addEventListener('click', function(){ showToast('아직 방문하지 않은 스팟이에요 🔒'); });
-    }
-    wrap.appendChild(btn);
-  });
-
-  // 현재 탭으로 스크롤
-  setTimeout(function(){
-    var activeBtn = wrap.querySelector('[data-current]');
-    if(activeBtn) activeBtn.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
-  }, 100);
-}
 
 
 // ╔═══════════════════════════════════════════════════════════╗
@@ -1754,12 +1690,12 @@ function renderSpotFilterTabs(){
     allBtn.addEventListener('click', function(){ selectFilter(null); });
     wrap.appendChild(allBtn);
 
-    // 스팟별 탭
+    // 스팟별 탭 — 모두 클릭 가능 (방문 여부 표시만)
     S.spots.forEach(function(sp){
       var visited = S.arrivedSpots.has(sp.id) || !!localStorage.getItem('arClaimed_'+S.userFp+'_'+sp.id);
       var btn = document.createElement('button');
-      btn.className = 'filter-tab' + (S.filterSpotId===sp.id?' active':'') + (visited?'':' locked');
-      btn.textContent = (visited?'✅':'🔒') + ' ' + sp.name;
+      btn.className = 'filter-tab' + (S.filterSpotId===sp.id?' active':'');
+      btn.textContent = (visited?'✅':'') + ' ' + sp.name;
       var sid = sp.id;
       btn.addEventListener('click', function(){ selectFilter(sid); });
       wrap.appendChild(btn);
@@ -1779,30 +1715,36 @@ async function selectFilter(spotId){
 async function refreshCommentView(){
   var sid = S.filterSpotId;
   var inputRow = document.getElementById('comment-input-row');
+  var commentInput = document.getElementById('comment-input');
 
-  // 방문한 스팟 여부 확인
   function isVisited(id){
     return S.arrivedSpots.has(id) || !!localStorage.getItem('arClaimed_'+S.userFp+'_'+id);
   }
 
   if(sid === null){
-    // 전체 탭: 방문한 스팟이 있으면 댓글 작성 가능
-    var anyVisited = S.spots.some(function(sp){ return isVisited(sp.id); });
-    inputRow.style.display = anyVisited ? 'flex' : 'none';
-    if(anyVisited && !S._commentTargetSpotId){
-      var first = S.spots.find(function(sp){ return isVisited(sp.id); });
-      if(first) S._commentTargetSpotId = first.id;
-    }
-    // 모든 스팟 댓글 로드
+    // 전체 탭: 댓글 작성 비활성
+    inputRow.style.display = 'none';
     await Promise.all(S.spots.map(function(sp){
       return S.comments[sp.id] ? Promise.resolve() : loadSpotOnce(sp.id);
     }));
     renderAllComments();
   } else {
-    // 특정 스팟 탭: 방문 여부와 관계없이 댓글 열람 가능
-    // 단, 작성은 방문한 경우만
-    inputRow.style.display = isVisited(sid) ? 'flex' : 'none';
-    if(isVisited(sid)) S._commentTargetSpotId = sid;
+    var visited = isVisited(sid);
+    inputRow.style.display = 'flex';
+    if(visited){
+      // 방문한 스팟: 댓글 작성 가능
+      commentInput.disabled = false;
+      commentInput.style.opacity = '1';
+      commentInput.placeholder = '해당 페이지 운영 목적 및 취지에 반하는 댓글·악플은 삭제됩니다.';
+      commentInput.style.fontSize = '11px';
+      S._commentTargetSpotId = sid;
+    } else {
+      // 미방문 스팟: 댓글 작성 비활성
+      commentInput.disabled = true;
+      commentInput.style.opacity = '0.5';
+      commentInput.placeholder = '방문한 사람만 댓글을 남길 수 있어요';
+      commentInput.style.fontSize = '12px';
+    }
     if(!S.comments[sid]) await loadSpotOnce(sid);
     renderSpotComments(sid);
   }
@@ -1811,6 +1753,7 @@ async function refreshCommentView(){
 // ── 댓글 작성 ──
 async function postComment(){
   var inp = document.getElementById('comment-input');
+  if(inp.disabled) return;
   var txt = inp.value.trim();
   if(!txt) return;
 
@@ -1949,13 +1892,14 @@ async function showArrivalScreen(spot){
   else imgEl.style.display='none';
 
   S._currentSpot=spot;
-  S.filterSpotId=spot.id;  // 기본: 현재 도착 스팟
+  S._commentTargetSpotId=spot.id;
+  S.filterSpotId=spot.id;
   showScreen('arrival');
-  switchTab('comment');
-  // 필터탭 렌더링 (댓글·랭킹 공용)
-  renderSpotFilterTabs();
+  // 댓글 먼저 구독 시작 → 데이터 오면 자동 갱신
   listenComments(spot.id);
-  loadRanking(spot.id);
+  // 필터탭 + 탭 전환
+  renderSpotFilterTabs();
+  switchTab('comment');
 }
 function openVideoLink(){ const u=document.getElementById('video-btn')._url; if(u)window.open(u,'_blank'); }
 
