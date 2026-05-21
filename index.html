@@ -1237,13 +1237,18 @@ function showProxPopup(icon,title,sub){
   p.classList.add('show'); setTimeout(()=>p.classList.remove('show'),5000);
 }
 function triggerArrival(){
-  vibrate([200,100,200,100,400]); playArrivalSound(); launchConfetti();
-
+  // S.targetSpot을 즉시 로컬 변수에 저장 (이후 변경되어도 영향 없도록)
   const spot = S.targetSpot;
   if(!spot){ showToast('오류: 스팟 정보 없음'); return; }
 
-  S.arrivedSpots.add(spot.id);
+  vibrate([200,100,200,100,400]); playArrivalSound(); launchConfetti();
+
+  // GPS 감시 중단 (더 이상 setNearestTarget 호출 안 됨)
   if(S.watchId){ navigator.geolocation.clearWatch(S.watchId); S.watchId=null; }
+
+  // 도착 처리
+  S.arrivedSpots.add(spot.id);
+  S.selectedSpotId = null;
   localStorage.removeItem('arSelectedSpot');
   localStorage.removeItem('arScreen');
 
@@ -1253,20 +1258,15 @@ function triggerArrival(){
   const fp = S.userFp || localStorage.getItem('arUserFp') || '';
   const alreadyClaimed = !!localStorage.getItem('arClaimed_'+fp+'_'+spot.id);
 
-  showToast('도착! 잔여:'+remaining+' 수령여부:'+alreadyClaimed+' 암호:'+(spot.secretCode?'있음':'없음'));
+  // 갤러리 갱신은 나중에 (현재 spot 변수에 영향 없음)
+  setTimeout(function(){ try{ renderSpotGallery(); }catch(e){} }, 500);
 
-  // 갤러리 갱신은 나중에
-  setTimeout(function(){ try{ renderSpotGallery(); }catch(e){} }, 1000);
-
-  // 분기 처리
+  // 분기 처리 — 모두 로컬 변수 spot 사용 (S.targetSpot 아님)
   if(remaining === 0 || alreadyClaimed){
-    // 선물 소진 or 이미 수령 → 바로 도착 화면
     showArrivalScreen(spot);
   } else if(spot.secretCode && spot.secretCode.trim()){
-    // 선물 있고 암호 있음 → 암호 팝업
     openSecretModal(spot);
   } else {
-    // 선물 있고 암호 없음 → 바로 도착 화면
     showArrivalScreen(spot);
   }
 }
