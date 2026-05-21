@@ -1263,6 +1263,10 @@ function showProxPopup(icon,title,sub){
   p.classList.add('show'); setTimeout(()=>p.classList.remove('show'),5000);
 }
 function triggerArrival(){
+  // 중복 실행 절대 방지
+  if(S._arrivalFired){ console.log('[triggerArrival] 중복 차단'); return; }
+  S._arrivalFired = true;
+
   // 선택한 스팟 ID로 spot 확정 (selectedSpotId 우선)
   var spot;
   if(S.selectedSpotId){
@@ -1270,8 +1274,7 @@ function triggerArrival(){
   }
   if(!spot) spot = S.targetSpot;
   if(!spot){ showToast('오류: 스팟 정보 없음'); return; }
-  console.log('[triggerArrival] 선택ID:', S.selectedSpotId, '→ spot:', spot.name, '/ targetSpot:', S.targetSpot && S.targetSpot.name);
-  showToast('도착: '+spot.name+' (선택ID:'+S.selectedSpotId+')');
+  console.log('[triggerArrival] spot:', spot.name);
 
   vibrate([200,100,200,100,400]); playArrivalSound(); launchConfetti();
 
@@ -1692,6 +1695,7 @@ function selectSpotAndHunt(spotId){
   S.shownProx = {r100:false, r50:false};
   S.proximityState = 'far';
   S._startDist = null;
+  S._arrivalFired = false;  // 새 스팟 선택 시 플래그 리셋
   // 진행 상태 저장 (새로고침 복귀용)
   localStorage.setItem('arSelectedSpot', spotId);
   localStorage.setItem('arScreen', 'hunt');
