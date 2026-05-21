@@ -642,7 +642,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
           </div>
           <div id="comments-list"></div>
           <div class="comment-input-row" id="comment-input-row">
-            <input class="comment-input" id="comment-input" placeholder="해당 페이지 운영 목적 및 취지에 반하는&#10;댓글·악플은 삭제됩니다." maxlength="80" style="font-size:11px;">
+            <input class="comment-input" id="comment-input" placeholder="해당 페이지 운영 목적 및 취지에 반하는 댓글·악플은 삭제됩니다." maxlength="80" style="font-size:11px;">
             <button class="comment-submit" onclick="postComment()">전송</button>
           </div>
         </div>
@@ -1078,60 +1078,34 @@ function initHuntMap(){
 // GEOLOCATION
 // ════════════════════════════════════════════
 function startGeolocation(){
-  var debugEl = document.getElementById('gps-debug');
-
   if(!navigator.geolocation){
-    if(debugEl){ debugEl.style.display='block'; debugEl.textContent = '❌ navigator.geolocation 없음 - 브라우저 미지원'; }
     showToast('위치 서비스를 지원하지 않는 브라우저예요.');
     startDemoMode(); return;
   }
-
-  if(debugEl){ debugEl.style.display='block'; debugEl.textContent = '🔄 GPS 권한 요청 중... (navigator.geolocation 있음)'; }
-
   navigator.geolocation.getCurrentPosition(
-    function(pos){
-      if(debugEl) debugEl.textContent = '✅ GPS 성공! 위도:'+pos.coords.latitude.toFixed(4)+' 경도:'+pos.coords.longitude.toFixed(4);
-      onPosition(pos);
-    },
-    function(e){
-      var msg = ['', '권한 거부됨(1)', '위치 불가(2)', '타임아웃(3)'];
-      if(debugEl) debugEl.textContent = '❌ GPS 오류: '+( msg[e.code]||e.code)+' - '+e.message;
-      showToast('GPS 오류: '+(msg[e.code]||e.code));
-    },
+    onPosition,
+    function(e){ console.warn('GPS 오류:', e.code); },
     {enableHighAccuracy:true, timeout:15000, maximumAge:0}
   );
-
   S.watchId = navigator.geolocation.watchPosition(
     onPosition,
     function(e){
-      var msg = ['', '권한 거부됨', '위치 불가', '타임아웃'];
-      if(debugEl) debugEl.textContent = '❌ watch 오류: '+(msg[e.code]||e.code);
       if(e.code === 1){
         showToast('📍 위치 권한을 허용해주세요!');
         var btn = document.getElementById('enable-sensor-btn');
         if(btn) btn.style.display='block';
-      } else {
-        onGeoError();
-      }
+      } else { onGeoError(); }
     },
     {enableHighAccuracy:true, maximumAge:2000, timeout:15000}
   );
-}
-function onPosition(pos){
+}function onPosition(pos){
   S.userPos={lat:pos.coords.latitude,lng:pos.coords.longitude};
   S.accuracy = pos.coords.accuracy;
-  var dbg = document.getElementById('gps-debug');
-  if(dbg){
-    dbg.style.background='rgba(0,100,0,0.85)';
-    dbg.textContent = '✅ GPS 성공! 위도:'+pos.coords.latitude.toFixed(5)+' 경도:'+pos.coords.longitude.toFixed(5)+' 정확도:'+Math.round(pos.coords.accuracy)+'m';
-    setTimeout(function(){ dbg.style.display='none'; }, 3000);
-  }
   updateUserMarker();
-  setNearestTarget();
+  try{ setNearestTarget(); } catch(e){ console.warn('setNearestTarget err:', e); }
   updateProximity();
   updateGalleryDists();
-}
-function onGeoError(){ showToast('위치를 가져올 수 없어요. 데모 모드로 실행합니다.'); startDemoMode(); }
+}function onGeoError(){ showToast('위치를 가져올 수 없어요. 데모 모드로 실행합니다.'); startDemoMode(); }
 function startDemoMode(){
   S.demoMode=true; S.userPos={lat:35.6932,lng:139.7040,acc:10};
   updateUserMarker(); setNearestTarget(); updateProximity();
@@ -2031,7 +2005,7 @@ async function refreshCommentView(){
       // 방문한 스팟: 댓글 작성 가능
       commentInput.disabled = false;
       commentInput.style.opacity = '1';
-      commentInput.placeholder = '해당 페이지 운영 목적 및 취지에 반하는 댓글·악플은 삭제됩니다.';
+      commentInput.placeholder = '해당 페이지 운영 목적 및 취지에\n반하는 댓글·악플은 삭제됩니다.';
       commentInput.style.fontSize = '11px';
       S._commentTargetSpotId = sid;
     } else {
