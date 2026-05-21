@@ -1864,14 +1864,34 @@ function makeCommentCard(c, order, spot){
     wrap.appendChild(ribbon);
   }
 
-  // 삭제 버튼 (자신 댓글만, 비밀번호로 보호)
-  var delBtn = document.createElement('button');
-  delBtn.style.cssText = "margin-top:6px;background:none;border:none;color:#AAAAAA;font-size:11px;cursor:pointer;padding:0;";
-  delBtn.textContent = '🗑️ 삭제';
-  (function(commentId, spotId){ 
-    delBtn.addEventListener('click', function(){ openCommentDelModal(commentId, spotId); });
-  })(c._id, spot ? spot.id : null);
-  card.appendChild(delBtn);
+  // 수정/삭제 버튼 행 (비밀번호 보호)
+  if(c._id){
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;margin-top:6px;';
+
+    var editBtn = document.createElement('button');
+    editBtn.style.cssText = "background:none;border:none;color:#AAAAAA;font-size:11px;cursor:pointer;padding:0;";
+    editBtn.textContent = '수정';
+    (function(commentId, spotId, origText){
+      editBtn.addEventListener('click', function(){ openCommentEditModal(commentId, spotId, origText); });
+    })(c._id, spot ? spot.id : null, c.text || '');
+    btnRow.appendChild(editBtn);
+
+    var sep = document.createElement('span');
+    sep.style.cssText = 'color:#DDDDDD;font-size:11px;';
+    sep.textContent = '|';
+    btnRow.appendChild(sep);
+
+    var delBtn = document.createElement('button');
+    delBtn.style.cssText = "background:none;border:none;color:#AAAAAA;font-size:11px;cursor:pointer;padding:0;";
+    delBtn.textContent = '삭제';
+    (function(commentId, spotId){
+      delBtn.addEventListener('click', function(){ openCommentDelModal(commentId, spotId); });
+    })(c._id, spot ? spot.id : null);
+    btnRow.appendChild(delBtn);
+
+    card.appendChild(btnRow);
+  }
 
   return wrap;
 }
@@ -2406,6 +2426,49 @@ async function postCommentWithPw(txt, pw){
   if(inp) inp.value = '';
   try{ await fbPostComment(sid, commentObj); }
   catch(e){ showToast('댓글 저장 중 오류가 발생했습니다.'); }
+}
+
+// 댓글 수정 모달
+var _editCommentId = null;
+var _editSpotId = null;
+
+function openCommentEditModal(commentId, spotId, origText){
+  _editCommentId = commentId;
+  _editSpotId = spotId;
+  document.getElementById('comment-edit-pw-input').value = '';
+  document.getElementById('comment-edit-pw-err').style.display = 'none';
+  document.getElementById('comment-edit-text-input').value = origText;
+  document.getElementById('comment-edit-modal').classList.remove('hidden');
+  setTimeout(function(){ document.getElementById('comment-edit-pw-input').focus(); }, 100);
+}
+
+function closeCommentEditModal(){
+  document.getElementById('comment-edit-modal').classList.add('hidden');
+  _editCommentId = null; _editSpotId = null;
+}
+
+async function confirmEditCommentPw(){
+  var pw = document.getElementById('comment-edit-pw-input').value.trim();
+  var newText = document.getElementById('comment-edit-text-input').value.trim();
+  if(!pw){ document.getElementById('comment-edit-pw-err').textContent='비밀번호를 입력해주세요.'; document.getElementById('comment-edit-pw-err').style.display='block'; return; }
+  if(!newText){ showToast('수정할 내용을 입력해주세요.'); return; }
+  if(!_editCommentId || !_editSpotId){ closeCommentEditModal(); return; }
+  try{
+    var {getDoc, updateDoc, doc} = fs();
+    var ref = doc(db(), 'comments', _editSpotId, 'msgs', _editCommentId);
+    var snap = await getDoc(ref);
+    if(!snap.exists()){ showToast('댓글을 찾을 수 없어요.'); closeCommentEditModal(); return; }
+    if(snap.data().pw !== pw){
+      document.getElementById('comment-edit-pw-err').style.display = 'block'; return;
+    }
+    await updateDoc(ref, { text: newText, edited: true });
+    showToast('댓글이 수정됐어요.');
+    closeCommentEditModal();
+  }catch(e){
+    console.error('댓글 수정 오류:', e);
+    showToast('수정 중 오류가 발생했습니다.');
+    closeCommentEditModal();
+  }
 }
 
 // 댓글 삭제 모달
@@ -3165,6 +3228,23 @@ waitFirebase(()=>{
   </div>
 </div>
 
+
+<!-- ════ 댓글 수정 모달 ════ -->
+<div class="modal-overlay hidden" id="comment-edit-modal">
+  <div class="modal-box">
+    <div class="modal-title">댓글 수정</div>
+    <div class="modal-sub">비밀번호를 입력하면 댓글을 수정할 수 있어요.</div>
+    <input class="modal-input" id="comment-edit-pw-input" type="password" placeholder="비밀번호"
+      onkeydown="if(event.key==='Enter') confirmEditCommentPw()">
+    <div class="modal-err" id="comment-edit-pw-err">비밀번호가 틀렸습니다.</div>
+    <textarea class="modal-input" id="comment-edit-text-input" placeholder="수정할 내용을 입력해주세요."
+      style="margin-top:8px;height:80px;resize:none;font-family:'Noto Sans KR',sans-serif;font-size:14px;letter-spacing:0;"></textarea>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeCommentEditModal()">취소</button>
+      <button class="modal-btn primary" onclick="confirmEditCommentPw()">수정</button>
+    </div>
+  </div>
+</div>
 <!-- ════ 댓글 삭제 확인 모달 ════ -->
 <div class="modal-overlay hidden" id="comment-del-modal">
   <div class="modal-box">
