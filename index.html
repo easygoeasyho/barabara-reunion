@@ -250,7 +250,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 .spot-list-icon{font-size:24px;}
 .spot-list-name{font-size:13px;font-weight:700;}
 .spot-list-sub{font-size:11px;color:var(--ink-lt);margin-top:2px;}
-.spot-list-del{margin-left:auto;background:none;border:none;color:var(--ink-lt);cursor:pointer;font-size:18px;padding:4px;}
+.spot-list-del{margin-left:auto;background:#FFF0F0;border:1.5px solid #FFB3B3;border-radius:8px;color:#FF3B30;cursor:pointer;font-size:12px;font-weight:700;padding:6px 14px;white-space:nowrap;font-family:'Noto Sans KR',sans-serif;}
 .spot-list-del:hover{color:var(--danger);}
 .admin-spot-tab{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--ink-mid);font-family:'Noto Sans KR',sans-serif;transition:all .2s;}
 .admin-spot-tab.active{background:var(--blue);color:#fff;border-color:var(--blue);}
@@ -643,7 +643,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
           <div id="comments-list"></div>
           <div class="comment-input-row" id="comment-input-row">
             <textarea class="comment-input" id="comment-input" placeholder="해당 페이지 운영 목적 및 취지에 반하는&#10;댓글·악플은 삭제됩니다." maxlength="80" style="font-size:11px;resize:none;"></textarea>
-            <button class="comment-submit" onclick="postComment()">전송</button>
+            <button class="comment-submit" onclick="openCommentPwModal()">전송</button>
           </div>
         </div>
         <div class="tab-pane" id="tab-ranking">
@@ -1864,6 +1864,15 @@ function makeCommentCard(c, order, spot){
     wrap.appendChild(ribbon);
   }
 
+  // 삭제 버튼 (자신 댓글만, 비밀번호로 보호)
+  var delBtn = document.createElement('button');
+  delBtn.style.cssText = "margin-top:6px;background:none;border:none;color:#AAAAAA;font-size:11px;cursor:pointer;padding:0;";
+  delBtn.textContent = '🗑️ 삭제';
+  (function(commentId, spotId){ 
+    delBtn.addEventListener('click', function(){ openCommentDelModal(commentId, spotId); });
+  })(c._id, spot ? spot.id : null);
+  card.appendChild(delBtn);
+
   return wrap;
 }
 
@@ -2344,6 +2353,110 @@ function confirmSpotSelect(){
   localStorage.setItem('arSchool', S.school);
   closeSpotPopup();
   selectSpotAndHunt(targetSpotId);  // null 아닌 저장된 ID 사용
+}
+
+
+// ════ 댓글 비밀번호 기능 ════
+var _commentPwPending = null;  // 대기 중인 댓글 텍스트
+
+function openCommentPwModal(){
+  var inp = document.getElementById('comment-input');
+  var txt = inp ? inp.value.trim() : '';
+  if(!txt){ showToast('댓글 내용을 입력해주세요.'); return; }
+  _commentPwPending = txt;
+  document.getElementById('comment-pw-input').value = '';
+  document.getElementById('comment-pw-err').style.display = 'none';
+  document.getElementById('comment-pw-modal').classList.remove('hidden');
+  setTimeout(function(){ document.getElementById('comment-pw-input').focus(); }, 100);
+}
+
+function closeCommentPwModal(){
+  document.getElementById('comment-pw-modal').classList.add('hidden');
+  _commentPwPending = null;
+}
+
+function confirmCommentPw(){
+  var pw = document.getElementById('comment-pw-input').value.trim();
+  if(pw.length < 4){
+    document.getElementById('comment-pw-err').textContent = '4자 이상 입력해주세요.';
+    document.getElementById('comment-pw-err').style.display = 'block'; return;
+  }
+  document.getElementById('comment-pw-modal').classList.add('hidden');
+  // 비밀번호와 함께 댓글 등록
+  postCommentWithPw(_commentPwPending, pw);
+  _commentPwPending = null;
+}
+
+async function postCommentWithPw(txt, pw){
+  var sid = S._commentTargetSpotId || (S._currentSpot && S._currentSpot.id);
+  if(!sid){ showToast('댓글을 남길 스팟을 선택해주세요.'); return; }
+  var nick = S.nickname || '익명';
+  var school = S.school || '미기입';
+  var spot = S.spots.find(function(s){ return s.id===sid; });
+  var fp = S.userFp || '';
+  var claimKey = 'arClaimed_'+fp+'_'+sid;
+  var claimedCode = localStorage.getItem(claimKey);
+  var giftItem = (claimedCode && spot && spot.gift && spot.gift.item) ? spot.gift.item : null;
+  var commentObj = {
+    nick: nick, school: school, text: txt, giftItem: giftItem,
+    pw: pw,  // 비밀번호 저장
+    time: new Date().toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),
+  };
+  var inp = document.getElementById('comment-input');
+  if(inp) inp.value = '';
+  try{ await fbPostComment(sid, commentObj); }
+  catch(e){ showToast('댓글 저장 중 오류가 발생했습니다.'); }
+}
+
+// 댓글 삭제 모달
+var _delCommentId = null;
+var _delSpotId = null;
+
+function openCommentDelModal(commentId, spotId){
+  _delCommentId = commentId;
+  _delSpotId = spotId;
+  document.getElementById('comment-del-pw-input').value = '';
+  document.getElementById('comment-del-pw-err').style.display = 'none';
+  document.getElementById('comment-del-modal').classList.remove('hidden');
+  setTimeout(function(){ document.getElementById('comment-del-pw-input').focus(); }, 100);
+}
+
+function closeCommentDelModal(){
+  document.getElementById('comment-del-modal').classList.add('hidden');
+  _delCommentId = null; _delSpotId = null;
+}
+
+async function confirmDeleteComment(){
+  var pw = document.getElementById('comment-del-pw-input').value.trim();
+  if(!pw){ document.getElementById('comment-del-pw-err').style.display='block'; return; }
+  if(!_delCommentId || !_delSpotId){ closeCommentDelModal(); return; }
+  try{
+    var {getDoc, deleteDoc, doc} = fs();
+    var ref = doc(db(), 'comments', _delSpotId, 'msgs', _delCommentId);
+    var snap = await getDoc(ref);
+    if(!snap.exists()){ showToast('댓글을 찾을 수 없어요.'); closeCommentDelModal(); return; }
+    var data = snap.data();
+    if(data.pw !== pw){
+      document.getElementById('comment-del-pw-err').style.display = 'block'; return;
+    }
+    await deleteDoc(ref);
+    showToast('댓글이 삭제됐어요.');
+    closeCommentDelModal();
+  }catch(e){
+    console.error('댓글 삭제 오류:', e);
+    showToast('삭제 중 오류가 발생했습니다.');
+    closeCommentDelModal();
+  }
+}
+
+// 관리자 댓글 삭제 (비밀번호 없이)
+async function adminDeleteComment(commentId, spotId){
+  if(!confirm('댓글을 삭제할까요?')) return;
+  try{
+    var {deleteDoc, doc} = fs();
+    await deleteDoc(doc(db(), 'comments', spotId, 'msgs', commentId));
+    showToast('댓글이 삭제됐어요.');
+  }catch(e){ showToast('삭제 오류: '+e.message); }
 }
 
 // ════════════════════════════════════════════
@@ -3033,6 +3146,36 @@ waitFirebase(()=>{
     <div class="spot-popup-btns">
       <button class="spot-popup-btn-cancel" onclick="closeSpotPopup()" style="flex:1;">다른 스팟 고르기</button>
       <button class="spot-popup-btn-go" onclick="confirmSpotSelect()" style="flex:1;">스팟 선택 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ 댓글 비밀번호 모달 ════ -->
+<div class="modal-overlay hidden" id="comment-pw-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="comment-pw-title">💬 댓글 비밀번호 설정</div>
+    <div class="modal-sub" id="comment-pw-sub">댓글 수정·삭제 시 필요한 비밀번호를 입력해주세요.</div>
+    <input class="modal-input" id="comment-pw-input" type="password" placeholder="비밀번호 (숫자·영문 4자 이상)" maxlength="20"
+      onkeydown="if(event.key==='Enter') confirmCommentPw()">
+    <div class="modal-err" id="comment-pw-err">비밀번호가 틀렸습니다.</div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeCommentPwModal()">취소</button>
+      <button class="modal-btn primary" onclick="confirmCommentPw()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ 댓글 삭제 확인 모달 ════ -->
+<div class="modal-overlay hidden" id="comment-del-modal">
+  <div class="modal-box">
+    <div class="modal-title">🗑️ 댓글 삭제</div>
+    <div class="modal-sub">비밀번호를 입력하면 댓글이 삭제됩니다.</div>
+    <input class="modal-input" id="comment-del-pw-input" type="password" placeholder="비밀번호"
+      onkeydown="if(event.key==='Enter') confirmDeleteComment()">
+    <div class="modal-err" id="comment-del-pw-err">비밀번호가 틀렸습니다.</div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeCommentDelModal()">취소</button>
+      <button class="modal-btn primary" onclick="confirmDeleteComment()">삭제</button>
     </div>
   </div>
 </div>
