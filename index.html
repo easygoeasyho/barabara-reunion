@@ -1594,7 +1594,11 @@ function toggleNickEdit(){
   if(schoolInput){ schoolInput.disabled=false; schoolInput.style.opacity='1'; schoolInput.style.background=''; }
   if(editBtn) editBtn.style.display='none';
   var subBtn = document.getElementById('nick-submit-btn');
-  if(subBtn) subBtn.style.display='block';
+  if(subBtn){ subBtn.style.display='block'; subBtn.disabled=true; }
+  var pledgeWrap = document.getElementById('pledge-wrap');
+  var pledgeCheck = document.getElementById('pledge-check');
+  if(pledgeWrap) pledgeWrap.style.display='block';
+  if(pledgeCheck) pledgeCheck.checked=false;
   nickInput.focus();
   // 완료 버튼으로 바꾸면 다시 저장
   editBtn.onclick = function(){
