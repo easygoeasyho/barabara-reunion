@@ -2479,19 +2479,21 @@ async function confirmEditCommentPw(){
   if(!newText){ showToast('수정할 내용을 입력해주세요.'); return; }
   if(!_editCommentId || !_editSpotId){ closeCommentEditModal(); return; }
   try{
-    var {getDoc, updateDoc, doc} = fs();
-    var ref = doc(db(), 'comments', _editSpotId, 'msgs', _editCommentId);
-    var snap = await getDoc(ref);
+    var _fsObj = window._fs;
+    if(!_fsObj){ showToast('Firebase 초기화 중입니다. 잠시 후 다시 시도해주세요.'); return; }
+    var _db = window._db;
+    var ref = _fsObj.doc(_db, 'comments', _editSpotId, 'msgs', _editCommentId);
+    var snap = await _fsObj.getDoc(ref);
     if(!snap.exists()){ showToast('댓글을 찾을 수 없어요.'); closeCommentEditModal(); return; }
     if(snap.data().pw !== pw){
       document.getElementById('comment-edit-pw-err').style.display = 'block'; return;
     }
-    await updateDoc(ref, { text: newText, edited: true });
+    await _fsObj.updateDoc(ref, { text: newText, edited: true });
     showToast('댓글이 수정됐어요.');
     closeCommentEditModal();
   }catch(e){
     console.error('댓글 수정 오류:', e);
-    showToast('수정 중 오류가 발생했습니다.');
+    showToast('수정 중 오류가 발생했습니다: '+e.message);
     closeCommentEditModal();
   }
 }
@@ -2519,20 +2521,22 @@ async function confirmDeleteComment(){
   if(!pw){ document.getElementById('comment-del-pw-err').style.display='block'; return; }
   if(!_delCommentId || !_delSpotId){ closeCommentDelModal(); return; }
   try{
-    var {getDoc, deleteDoc, doc} = fs();
-    var ref = doc(db(), 'comments', _delSpotId, 'msgs', _delCommentId);
-    var snap = await getDoc(ref);
+    var _fsObj = window._fs;
+    if(!_fsObj){ showToast('Firebase 초기화 중입니다. 잠시 후 다시 시도해주세요.'); return; }
+    var _db = window._db;
+    var ref = _fsObj.doc(_db, 'comments', _delSpotId, 'msgs', _delCommentId);
+    var snap = await _fsObj.getDoc(ref);
     if(!snap.exists()){ showToast('댓글을 찾을 수 없어요.'); closeCommentDelModal(); return; }
     var data = snap.data();
     if(data.pw !== pw){
       document.getElementById('comment-del-pw-err').style.display = 'block'; return;
     }
-    await deleteDoc(ref);
+    await _fsObj.deleteDoc(ref);
     showToast('댓글이 삭제됐어요.');
     closeCommentDelModal();
   }catch(e){
     console.error('댓글 삭제 오류:', e);
-    showToast('삭제 중 오류가 발생했습니다.');
+    showToast('삭제 중 오류가 발생했습니다: '+e.message);
     closeCommentDelModal();
   }
 }
