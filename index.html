@@ -1584,7 +1584,7 @@ function applyNickSavedMode(){
     if(editBtn) editBtn.style.display='block';
     if(submitBtn) submitBtn.style.display='none';
     var pw = document.getElementById('pledge-wrap');
-    if(pw) pw.style.display='none';
+
   } else {
     nickInput.disabled = false;
     nickInput.style.opacity = '1';
@@ -1592,11 +1592,6 @@ function applyNickSavedMode(){
     if(schoolInput){ schoolInput.disabled=false; schoolInput.style.opacity='1'; schoolInput.style.background=''; }
     if(editBtn) editBtn.style.display='none';
     if(submitBtn){ submitBtn.style.display='block'; submitBtn.disabled=true; }
-    // 서약란 표시, 체크 안 된 상태로
-    var pledgeWrap = document.getElementById('pledge-wrap');
-    var pledgeCheck = document.getElementById('pledge-check');
-    if(pledgeWrap) pledgeWrap.style.display='block';
-    if(pledgeCheck) pledgeCheck.checked=false;
   }
 }
 
@@ -1610,10 +1605,9 @@ function toggleNickEdit(){
   if(editBtn) editBtn.style.display='none';
   var subBtn = document.getElementById('nick-submit-btn');
   if(subBtn){ subBtn.style.display='block'; subBtn.disabled=true; }
-  var pledgeWrap = document.getElementById('pledge-wrap');
   var pledgeCheck = document.getElementById('pledge-check');
-  if(pledgeWrap) pledgeWrap.style.display='block';
   if(pledgeCheck) pledgeCheck.checked=false;
+  if(subBtn) subBtn.disabled=true; subBtn.style.opacity='0.5';
   nickInput.focus();
   // 완료 버튼으로 바꾸면 다시 저장
   editBtn.onclick = function(){
