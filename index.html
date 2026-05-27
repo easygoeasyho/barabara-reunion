@@ -2046,10 +2046,11 @@ function makeCommentCard(c, order, spot){
     var allDivs = card.querySelectorAll(':scope > div');
     var targetRow = spot ? allDivs[1] : allDivs[0];
     if(targetRow){
-      var nickEl = targetRow.querySelector('b');
-      if(nickEl && nickEl.nextSibling){
-        targetRow.insertBefore(giftBadge, nickEl.nextSibling);
-      } else if(nickEl){
+      // 시간 요소(마지막 span) 바로 앞에 삽입 → [닉네임][학교명][선물뱃지][시간] 순
+      var timeEl = targetRow.querySelector('span:last-child');
+      if(timeEl){
+        targetRow.insertBefore(giftBadge, timeEl);
+      } else {
         targetRow.appendChild(giftBadge);
       }
     }
