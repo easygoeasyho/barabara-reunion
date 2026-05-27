@@ -2024,13 +2024,35 @@ function makeCommentCard(c, order, spot){
   body.textContent = c.text || '';
   card.appendChild(body);
 
-  // 선물 수령 리본 (우측 상단 대각선)
+  // 선물 수령 뱃지 (관리자 스타일 - 닉네임 옆 인라인)
   wrap.appendChild(card);
   if(c.giftItem){
-    var ribbon = document.createElement('div');
-    ribbon.className = 'gift-ribbon';
-    ribbon.textContent = '선물 수령자';
-    wrap.appendChild(ribbon);
+    var giftBadge = document.createElement('span');
+    giftBadge.style.cssText = [
+      'display:inline-block',
+      'margin-left:6px',
+      'background:#e8f5e9',
+      'color:#2A8C4A',
+      'font-size:10px',
+      'font-weight:700',
+      'padding:2px 7px',
+      'border-radius:10px',
+      'vertical-align:middle',
+    ].join(';');
+    giftBadge.textContent = '🎁 ' + c.giftItem;
+    // metaRow (닉네임 행) 에 삽입 - nick 바로 뒤
+    var metaRowEl = card.querySelector('div');
+    // metaRow는 두 번째 div (spot이 있으면 세 번째)
+    var allDivs = card.querySelectorAll(':scope > div');
+    var targetRow = spot ? allDivs[1] : allDivs[0];
+    if(targetRow){
+      var nickEl = targetRow.querySelector('b');
+      if(nickEl && nickEl.nextSibling){
+        targetRow.insertBefore(giftBadge, nickEl.nextSibling);
+      } else if(nickEl){
+        targetRow.appendChild(giftBadge);
+      }
+    }
   }
 
   // 수정/삭제 버튼 행 (비밀번호 보호)
@@ -2709,8 +2731,14 @@ async function confirmDeleteComment(){
 async function adminDeleteComment(commentId, spotId){
   if(!confirm('댓글을 삭제할까요?')) return;
   try{
-    var {deleteDoc, doc} = fs();
+    const {deleteDoc, doc} = window._fs;
     await deleteDoc(doc(db(), 'comments', spotId, 'msgs', commentId));
+    // 로컬 캐시에서도 제거 후 화면 갱신
+    if(S.comments[spotId]){
+      S.comments[spotId] = S.comments[spotId].filter(function(c){ return c._id !== commentId; });
+    }
+    renderAdminCommentList(spotId);
+    renderAdminStats();
     showToast('댓글이 삭제됐어요.');
   }catch(e){ showToast('삭제 오류: '+e.message); }
 }
@@ -3051,18 +3079,30 @@ async function updateSpot(){
 
 
 async function removeSpot(id){
-  if(!confirm('이 스팟을 삭제하시겠습니까?'))return;
+  if(!confirm('이 스팟을 삭제하시겠습니까?\n해당 스팟의 댓글도 모두 삭제됩니다.'))return;
   try{
+    // 1) 댓글 먼저 삭제 (comments/{spotId}/msgs 하위 전체)
+    const {getDocs, collection, deleteDoc, doc} = window._fs;
+    const msgsSnap = await getDocs(collection(db(), 'comments', id, 'msgs'));
+    const delPromises = [];
+    msgsSnap.forEach(function(msgDoc){
+      delPromises.push(deleteDoc(doc(db(), 'comments', id, 'msgs', msgDoc.id)));
+    });
+    await Promise.all(delPromises);
+
+    // 2) 스팟 삭제
     await fbDeleteSpot(id);
+
     // 지도에서 핀 제거
     if(S.adminMap && S.adminMapMarkers[id]){
       S.adminMap.removeLayer(S.adminMapMarkers[id]);
       delete S.adminMapMarkers[id];
     }
     S.spots=S.spots.filter(s=>s.id!==id);
+    delete S.comments[id];
     renderAdminSpotList(); renderSpotStatus();
     adminCommentSpot=null; renderAdminCommentTabs(); renderAdminStats();
-    showToast('스팟 삭제됨');
+    showToast('스팟과 댓글이 모두 삭제됐어요.');
   }catch(e){ showToast('삭제 실패: '+e.message); }
 }
 function renderAdminSpotList(){
