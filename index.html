@@ -585,7 +585,7 @@ button:active, .sg-card:active, .spot-card:active {
       </button>
     </div>
     <!-- 힌트 패널 -->
-    <div id="hint-panel-new" style="display:none;position:absolute;right:12px;bottom:160px;z-index:600;width:200px;background:#fff;border:1.5px solid var(--blue);border-radius:var(--rsm);padding:10px 14px;font-size:12px;color:var(--ink-mid);line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,.15);">
+    <div id="hint-panel-new" style="display:none;position:fixed;right:12px;bottom:220px;z-index:6000;width:200px;background:#fff;border:1.5px solid var(--blue);border-radius:var(--rsm);padding:10px 14px;font-size:12px;color:var(--ink-mid);line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,.15);">
       <b style="color:var(--blue);">💡 힌트</b><br>
       <span id="hint-text-new">힌트가 없습니다.</span>
     </div>
@@ -1291,6 +1291,33 @@ function showProxPopup(icon,title,sub){
   const p=document.getElementById('prox-popup');
   p.classList.add('show'); setTimeout(()=>p.classList.remove('show'),5000);
 }
+
+// ════ 방문 기록 Firebase에 저장 (visits 컬렉션) ════
+async function fbRecordVisit(spotId){
+  if(!fbReady() || !spotId) return;
+  const {doc, runTransaction} = window._fs;
+  const visitRef = doc(db(), 'visits', spotId);
+  try{
+    await runTransaction(db(), async function(transaction){
+      const snap = await transaction.get(visitRef);
+      var newCount = snap.exists() ? (snap.data().count||0) + 1 : 1;
+      transaction.set(visitRef, {count: newCount}, {merge: true});
+    });
+  } catch(e){
+    console.warn('[fbRecordVisit] 실패:', e);
+  }
+}
+
+// ════ 방문자 수 읽기 (visits 컬렉션) ════
+async function fbGetVisitCount(spotId){
+  if(!fbReady() || !spotId) return 0;
+  const {doc, getDoc} = window._fs;
+  try{
+    const snap = await getDoc(doc(db(), 'visits', spotId));
+    return snap.exists() ? (snap.data().count||0) : 0;
+  } catch(e){ return 0; }
+}
+
 function triggerArrival(){
   // 중복 실행 절대 방지
   if(S._arrivalFired){ console.log('[triggerArrival] 중복 차단'); return; }
@@ -1311,8 +1338,11 @@ function triggerArrival(){
   if(S.watchId){ navigator.geolocation.clearWatch(S.watchId); S.watchId=null; }
 
   // 도착 처리
+  var isFirstVisit = !S.arrivedSpots.has(spot.id);
   S.arrivedSpots.add(spot.id);
   localStorage.setItem('arArrivedSpots', JSON.stringify([...S.arrivedSpots]));
+  // 첫 방문일 때만 Firebase에 방문 기록 (중복 집계 방지)
+  if(isFirstVisit) fbRecordVisit(spot.id);
   S.selectedSpotId = null;
   localStorage.removeItem('arSelectedSpot');
   localStorage.removeItem('arScreen');
@@ -2465,9 +2495,15 @@ function openSpotPopup(sp){
     if(noGiftRow) noGiftRow.style.display = 'block';
   }
 
-  // 방문자 수 (댓글 수 기준)
-  var visitors = (S.comments[sp.id]||[]).length;
-  document.getElementById('popup-visitors').textContent = visitors;
+  // 방문자 수 (visits 컬렉션 기준 - 실시간)
+  document.getElementById('popup-visitors').textContent = '...';
+  fbGetVisitCount(sp.id).then(function(cnt){
+    var el = document.getElementById('popup-visitors');
+    if(el) el.textContent = cnt;
+  }).catch(function(){
+    var el = document.getElementById('popup-visitors');
+    if(el) el.textContent = 0;
+  });
 
   document.getElementById('spot-popup').classList.remove('hidden');
 }
