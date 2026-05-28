@@ -1922,11 +1922,7 @@ function reviewCompletedSpot(spotId){
   document.getElementById('arrival-emoji').textContent = spot.emoji||'🎉';
   document.getElementById('arrival-spot-name').textContent = spot.name;
   document.getElementById('teacher-name-label').textContent = (spot.teacherName||'조재면') + ' 선생님';
-  var roleEl = document.getElementById('teacher-role-label');
-  if(roleEl){
-    var subtitle = spot.msgTitle || '따로따로 동창회';
-    roleEl.innerHTML = '“' + subtitle + '”';
-  }
+
   document.getElementById('teacher-msg-text').textContent = spot.message||'';
   document.getElementById('gift-store').textContent = spot.gift?.store||'';
   document.getElementById('gift-item').textContent = spot.gift?.item||'';
@@ -2830,7 +2826,12 @@ async function showArrivalScreen(spot){
   // ── 기본 정보 설정 ──
   document.getElementById('arrival-emoji').textContent=spot.emoji||'🎉';
   document.getElementById('arrival-spot-name').textContent=spot.name;
-  document.getElementById('teacher-name-label').textContent=spot.teacherName||'선생님';
+  document.getElementById('teacher-name-label').textContent = (spot.teacherName ? spot.teacherName + ' 선생님' : '조재면 선생님');
+  var _roleEl = document.getElementById('teacher-role-label');
+  if(_roleEl){
+    var _subtitle = (spot.msgTitle && spot.msgTitle.trim()) ? spot.msgTitle.trim() : '따로따로 동창회';
+    _roleEl.textContent = '“' + _subtitle + '”';
+  }
   document.getElementById('teacher-msg-text').textContent=spot.message||'';
   document.getElementById('gift-store').textContent=spot.gift?.store||'';
   document.getElementById('gift-item').textContent=spot.gift?.item||'';
