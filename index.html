@@ -1925,7 +1925,7 @@ function reviewCompletedSpot(spotId){
   var roleEl = document.getElementById('teacher-role-label');
   if(roleEl){
     var subtitle = spot.msgTitle || '따로따로 동창회';
-    roleEl.innerHTML = '\u201c' + subtitle + '\u201d';
+    roleEl.innerHTML = '“' + subtitle + '”';
   }
   document.getElementById('teacher-msg-text').textContent = spot.message||'';
   document.getElementById('gift-store').textContent = spot.gift?.store||'';
@@ -2652,6 +2652,24 @@ function confirmCommentPw(){
   // 비밀번호와 함께 댓글 등록
   postCommentWithPw(_commentPwPending, pw);
   _commentPwPending = null;
+}
+
+
+async function submitComment(){
+  var text = (document.getElementById('comment-input').value||'').trim();
+  if(!text){ showToast('댓글을 입력해주세요.'); return; }
+  var spotId = S._commentTargetSpotId || (S._currentSpot && S._currentSpot.id);
+  if(!spotId){ showToast('스팟을 선택해주세요.'); return; }
+  // 인라인 비밀번호 읽기
+  var pwInline = document.getElementById('comment-pw-inline');
+  var pw = pwInline ? pwInline.value.trim() : '';
+  if(!pw){
+    if(pwInline){ pwInline.style.borderColor='var(--danger)'; pwInline.focus(); }
+    showToast('비밀번호를 입력해주세요.');
+    return;
+  }
+  await postCommentWithPw(text, pw);
+  if(pwInline){ pwInline.value=''; pwInline.style.borderColor='var(--border)'; }
 }
 
 async function postCommentWithPw(txt, pw){
