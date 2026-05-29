@@ -1875,20 +1875,6 @@ function selectSpotAndHunt(spotId){
     catch(e){ console.error('initHuntMap 오류:', e); }
     try{ startGeolocation(); }
     catch(e){ console.error('startGeolocation 오류:', e); }
-  // 새로고침 복원 시 secretCode 스팟이고 아직 미수령이면 배너 표시
-  try{
-    var _rSpot = S.targetSpot || S.spots.find(function(s){return s.id===S.selectedSpotId;});
-    if(_rSpot && _rSpot.secretCode && _rSpot.secretCode.trim()){
-      var _localKey = 'arClaimed_'+S.userFp+'_'+_rSpot.id;
-      // 도착한 적 있고(arrivedSpots) + 아직 미수령일 때만 배너 표시
-      var _hasArrived = S.arrivedSpots.has(_rSpot.id);
-      if(_hasArrived && !localStorage.getItem(_localKey)){
-        S._currentSpot = _rSpot;  // reopenSecretModal에서 사용
-        var _banner = document.getElementById('secret-reopen-banner');
-        if(_banner) _banner.style.display = 'flex';
-      }
-    }
-  } catch(e){}
     startCompass();
   }, 100);
   // 나침반 즉시 해당 스팟으로 설정
@@ -3486,6 +3472,19 @@ waitFirebase(()=>{
       const spot = S.spots.find(s=>s.id===savedSpotId);
       if(spot){
         selectSpotAndHunt(savedSpotId);
+        // 새로고침 복원 시에만: 암호 미입력 배너 복원 (도착 O + 미수령 경우)
+        setTimeout(function(){
+          if(spot.secretCode && spot.secretCode.trim()){
+            var _fp = S.userFp || localStorage.getItem('arUserFp') || '';
+            var _localKey = 'arClaimed_' + _fp + '_' + spot.id;
+            var _hasArrived = S.arrivedSpots.has(spot.id);
+            if(_hasArrived && !localStorage.getItem(_localKey)){
+              S._currentSpot = spot;
+              var _banner = document.getElementById('secret-reopen-banner');
+              if(_banner) _banner.style.display = 'flex';
+            }
+          }
+        }, 200);
         return;
       }
     }
